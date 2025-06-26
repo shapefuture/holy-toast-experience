@@ -17,107 +17,141 @@ const Index = () => {
 
     // Scene setup
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0xffa500, 10, 50);
+    scene.background = new THREE.Color(0x8B4513);
     sceneRef.current = scene;
 
-    // Camera setup
+    // Camera setup - positioned for tunnel view
     const camera = new THREE.PerspectiveCamera(
-      75,
+      60,
       window.innerWidth / window.innerHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 0, 5);
+    camera.position.set(0, 0, 20);
     cameraRef.current = camera;
 
-    // Renderer setup with mobile optimization
+    // Renderer setup
     const renderer = new THREE.WebGLRenderer({ 
-      antialias: false, // Disable for mobile performance
-      powerPreference: "high-performance",
-      precision: "mediump"
+      antialias: true,
+      powerPreference: "high-performance"
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio for performance
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x8B4513, 1);
     rendererRef.current = renderer;
 
     mountRef.current.appendChild(renderer.domElement);
 
-    // Lighting setup
-    const ambientLight = new THREE.AmbientLight(0xffa500, 0.6);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(0, 10, 5);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 1024;
-    directionalLight.shadow.mapSize.height = 1024;
-    scene.add(directionalLight);
-
-    // Point light for dramatic effect
-    const pointLight = new THREE.PointLight(0xffd700, 2, 100);
-    pointLight.position.set(0, 0, 10);
-    scene.add(pointLight);
-
-    // Create bread texture
-    const textureLoader = new THREE.TextureLoader();
-    const breadTexture = new THREE.CanvasTexture(createBreadTexture());
+    // Create tunnel geometry - circular tunnel
+    const tunnelRadius = 8;
+    const tunnelLength = 50;
+    const tunnelSegments = 32;
+    
+    // Create tunnel walls
+    const tunnelGeometry = new THREE.CylinderGeometry(
+      tunnelRadius, tunnelRadius, tunnelLength, tunnelSegments, 1, true
+    );
+    
+    // Create bread-like texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Golden brown bread texture
+    const gradient = ctx.createRadialGradient(256, 256, 50, 256, 256, 256);
+    gradient.addColorStop(0, '#DAA520');
+    gradient.addColorStop(0.5, '#B8860B');
+    gradient.addColorStop(1, '#8B4513');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Add texture details
+    for (let i = 0; i < 200; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const size = Math.random() * 8 + 2;
+      ctx.fillStyle = `rgba(${139 + Math.random() * 80}, ${69 + Math.random() * 80}, ${19 + Math.random() * 50}, ${0.3 + Math.random() * 0.4})`;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    const breadTexture = new THREE.CanvasTexture(canvas);
     breadTexture.wrapS = THREE.RepeatWrapping;
     breadTexture.wrapT = THREE.RepeatWrapping;
-    breadTexture.repeat.set(2, 2);
-
-    // Create tunnel walls with bread texture
-    const tunnelGeometry = new THREE.CylinderGeometry(8, 8, 100, 32, 1, true);
+    breadTexture.repeat.set(4, 8);
+    
     const tunnelMaterial = new THREE.MeshPhongMaterial({
       map: breadTexture,
       side: THREE.BackSide,
-      shininess: 30
+      color: 0xCD853F
     });
+    
     const tunnel = new THREE.Mesh(tunnelGeometry, tunnelMaterial);
     tunnel.rotation.x = Math.PI / 2;
+    tunnel.position.z = -10;
     scene.add(tunnel);
 
+    // Lighting setup - key for the golden effect
+    const ambientLight = new THREE.AmbientLight(0xFFA500, 0.4);
+    scene.add(ambientLight);
+
+    // Bright light at the end of tunnel
+    const endLight = new THREE.PointLight(0xFFFFFF, 3, 100);
+    endLight.position.set(0, 0, -35);
+    scene.add(endLight);
+
+    // Additional golden lighting
+    const goldenLight = new THREE.DirectionalLight(0xFFA500, 1.5);
+    goldenLight.position.set(0, 10, 5);
+    scene.add(goldenLight);
+
+    // Create the bright end of tunnel
+    const endGeometry = new THREE.CircleGeometry(tunnelRadius * 0.8, 32);
+    const endMaterial = new THREE.MeshBasicMaterial({
+      color: 0xFFFFFF,
+      transparent: true,
+      opacity: 0.9
+    });
+    const tunnelEnd = new THREE.Mesh(endGeometry, endMaterial);
+    tunnelEnd.position.set(0, 0, -35);
+    scene.add(tunnelEnd);
+
     // Create Jesus toast at the end
-    const jesusToastGeometry = new THREE.PlaneGeometry(4, 4);
-    const jesusToastTexture = new THREE.TextureLoader().load('/lovable-uploads/5262d44d-60b0-4c39-a3d1-861421c6f1b1.png');
-    const jesusToastMaterial = new THREE.MeshPhongMaterial({
-      map: jesusToastTexture,
+    const jesusGeometry = new THREE.PlaneGeometry(3, 3);
+    const jesusTexture = new THREE.TextureLoader().load('/lovable-uploads/5262d44d-60b0-4c39-a3d1-861421c6f1b1.png');
+    const jesusMaterial = new THREE.MeshBasicMaterial({
+      map: jesusTexture,
       transparent: true,
       alphaTest: 0.1
     });
-    const jesusToast = new THREE.Mesh(jesusToastGeometry, jesusToastMaterial);
-    jesusToast.position.set(0, 0, -45);
+    const jesusToast = new THREE.Mesh(jesusGeometry, jesusMaterial);
+    jesusToast.position.set(0, 0, -34);
     scene.add(jesusToast);
-
-    // Add glowing effect around Jesus
-    const glowGeometry = new THREE.PlaneGeometry(6, 6);
-    const glowMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.3,
-      blending: THREE.AdditiveBlending
-    });
-    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-    glow.position.set(0, 0, -44.9);
-    scene.add(glow);
 
     // Create floating bread pieces
     const breadPieces: THREE.Mesh[] = [];
-    for (let i = 0; i < 50; i++) {
-      const breadGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.2);
+    const breadGeometry = new THREE.BoxGeometry(0.4, 0.4, 0.2);
+    
+    for (let i = 0; i < 80; i++) {
       const breadMaterial = new THREE.MeshPhongMaterial({
-        color: 0xDAA520,
-        map: breadTexture
+        color: new THREE.Color().setHSL(0.08 + Math.random() * 0.05, 0.8, 0.4 + Math.random() * 0.3)
       });
+      
       const bread = new THREE.Mesh(breadGeometry, breadMaterial);
       
+      // Position bread pieces throughout the tunnel
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.random() * (tunnelRadius - 1) + 1;
+      const distance = Math.random() * 40 - 20;
+      
       bread.position.set(
-        (Math.random() - 0.5) * 15,
-        (Math.random() - 0.5) * 15,
-        Math.random() * -40 - 5
+        Math.cos(angle) * radius,
+        Math.sin(angle) * radius,
+        distance
       );
+      
       bread.rotation.set(
         Math.random() * Math.PI,
         Math.random() * Math.PI,
@@ -130,40 +164,32 @@ const Index = () => {
 
     // Animation variables
     let time = 0;
-    let cameraMovement = 0;
 
     // Animation loop
     const animate = () => {
       frameRef.current = requestAnimationFrame(animate);
       time += 0.01;
 
-      // Smooth camera movement
-      cameraMovement += 0.02;
-      camera.position.z = 5 + Math.sin(cameraMovement * 0.5) * 2;
-      camera.position.x = Math.sin(cameraMovement * 0.3) * 0.5;
-      camera.position.y = Math.cos(cameraMovement * 0.2) * 0.3;
-
-      // Rotate tunnel slowly
-      tunnel.rotation.z += 0.005;
-
-      // Animate Jesus toast
-      jesusToast.rotation.z = Math.sin(time) * 0.1;
-      jesusToast.scale.setScalar(1 + Math.sin(time * 2) * 0.05);
-
-      // Animate glow
-      glow.rotation.z += 0.01;
-      glow.material.opacity = 0.3 + Math.sin(time * 3) * 0.1;
+      // Gentle camera sway
+      camera.position.x = Math.sin(time * 0.3) * 0.5;
+      camera.position.y = Math.cos(time * 0.2) * 0.3;
 
       // Animate floating bread
       breadPieces.forEach((bread, index) => {
-        bread.rotation.x += 0.01;
-        bread.rotation.y += 0.02;
-        bread.position.y += Math.sin(time + index) * 0.01;
+        bread.rotation.x += 0.005;
+        bread.rotation.y += 0.008;
+        bread.rotation.z += 0.003;
+        
+        // Gentle floating motion
+        bread.position.x += Math.sin(time + index) * 0.002;
+        bread.position.y += Math.cos(time + index * 0.5) * 0.002;
       });
 
-      // Animate lights
-      pointLight.intensity = 2 + Math.sin(time * 2) * 0.5;
-      pointLight.color.setHSL(0.15, 1, 0.5 + Math.sin(time) * 0.2);
+      // Animate tunnel end light
+      endLight.intensity = 2.5 + Math.sin(time * 2) * 0.5;
+      
+      // Animate Jesus toast
+      jesusToast.rotation.z = Math.sin(time * 0.5) * 0.05;
 
       renderer.render(scene, camera);
     };
@@ -193,39 +219,6 @@ const Index = () => {
       renderer.dispose();
     };
   }, []);
-
-  // Create bread texture programmatically
-  const createBreadTexture = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d')!;
-
-    // Base bread color
-    ctx.fillStyle = '#D2691E';
-    ctx.fillRect(0, 0, 256, 256);
-
-    // Add bread texture details
-    for (let i = 0; i < 100; i++) {
-      const x = Math.random() * 256;
-      const y = Math.random() * 256;
-      const size = Math.random() * 10 + 2;
-      
-      ctx.fillStyle = `rgba(${160 + Math.random() * 50}, ${100 + Math.random() * 50}, ${50 + Math.random() * 30}, ${0.3 + Math.random() * 0.4})`;
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Add crust edges
-    ctx.fillStyle = '#8B4513';
-    ctx.fillRect(0, 0, 256, 20);
-    ctx.fillRect(0, 236, 256, 20);
-    ctx.fillRect(0, 0, 20, 256);
-    ctx.fillRect(236, 0, 20, 256);
-
-    return canvas;
-  };
 
   const startAudio = () => {
     setAudioStarted(true);
